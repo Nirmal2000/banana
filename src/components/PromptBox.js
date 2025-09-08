@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { RotateCcw } from 'lucide-react';
-import { useGraphStore } from '@/store/graphStore';
-import { getImage } from '@/lib/dexieStore';
-import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useEffect, useRef, useState } from "react";
+import { RotateCcw, X, MoreVertical } from "lucide-react";
+import { useGraphStore } from "@/store/graphStore";
+import { getImage } from "@/lib/dexieStore";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const PromptBox = () => {
   const [position, setPosition] = useState({ x: 50, y: 50 });
@@ -29,7 +28,30 @@ const PromptBox = () => {
     generateVariationIds,
     viewport,
     getNodePosition,
+    requestFocusNode,
+    setSelectedNode,
   } = useGraphStore();
+
+  // Load a tiny thumbnail for the selected node without affecting layout
+  const [selectedThumb, setSelectedThumb] = useState(null);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!selectedNodeId) {
+        if (active) setSelectedThumb(null);
+        return;
+      }
+      // try in-memory first via updateNodeImage flow
+      const img = useGraphStore.getState().getNodeImage(selectedNodeId);
+      if (img) {
+        if (active) setSelectedThumb(img);
+        return;
+      }
+      const persisted = await getImage(selectedNodeId);
+      if (active) setSelectedThumb(persisted || null);
+    })();
+    return () => { active = false; };
+  }, [selectedNodeId]);
 
   const handleEvent = (eventData) => {
     if (eventData.event === 'plans') {
@@ -165,55 +187,93 @@ const PromptBox = () => {
     setIsDragging(true);
   };
 
-  const handleMouseMove = (e) => {
-    if (isDragging) {
+  // Attach global listeners while dragging for a smoother UX
+  useEffect(() => {
+    if (!isDragging) return;
+    const move = (e) => {
       setPosition({
         x: e.clientX - dragOffset.x,
         y: e.clientY - dragOffset.y,
       });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+    };
+    const up = () => setIsDragging(false);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, [isDragging, dragOffset]);
 
   return (
-    <Card
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp} // To handle release outside
+    <div
       className={cn(
-        "fixed z-50 min-w-[300px] min-h-[100px] cursor-grab",
-        isDragging && "cursor-grabbing"
+        "fixed z-50",
+        "rounded-xl bg-neutral-950/95 backdrop-blur px-4 py-3 min-w-[520px]",
+        "border border-white/20",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_10px_30px_rgba(0,0,0,0.45)]"
       )}
-      style={{
-        top: position.y,
-        left: position.x,
-      }}
+      style={{ top: position.y, left: position.x }}
     >
-      <CardHeader>
-        <CardTitle>Prompt Box</CardTitle>
-        {selectedNodeId && <div className="text-sm text-muted-foreground">Selected: {selectedNodeId}</div>}
-      </CardHeader>
-      <CardContent className="space-y-4">
+      {/* Row: drag handle | thumbnail | input | icon button */}
+      <div className="flex items-center gap-3">
+        {/* Drag handle */}
+        <button
+          onMouseDown={handleMouseDown}
+          className={cn(
+            "shrink-0 w-6 h-9 grid place-items-center text-neutral-500 hover:text-neutral-300",
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          )}
+          title="Drag"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+
+        {/* Selected thumbnail to the left of input */}
+        {selectedNodeId && selectedThumb && (
+          <div className="relative group select-none">
+            <button
+              className="block w-9 h-9 rounded-md overflow-hidden shadow ring-1 ring-neutral-700 hover:ring-neutral-500"
+              onClick={() => requestFocusNode(selectedNodeId)}
+              title="Focus selected node"
+            >
+              <img src={selectedThumb} alt="Selected preview" className="w-full h-full object-cover" />
+            </button>
+            <button
+              className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-neutral-100 text-neutral-900 hidden group-hover:flex items-center justify-center shadow"
+              onClick={() => {
+                setSelectedNode(null);
+                setSelectedThumb(null);
+              }}
+              title="Clear selection"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         <Input
           type="text"
-          placeholder="Enter your prompt here"
+          placeholder="Describe the change…"
           value={promptValue}
           onChange={(e) => setPromptValue(e.target.value)}
           disabled={generating}
+          className={cn(
+            "w-[420px] h-10 bg-neutral-900/70 border-neutral-800 text-sm",
+            "focus:outline-none focus:ring-0 focus-visible:ring-0 focus:border-neutral-800"
+          )}
         />
         <Button
+          size="icon"
+          variant="secondary"
           onClick={handleGenerate}
           disabled={!promptValue.trim() || generating}
+          className="h-10 w-10 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
+          title={selectedNodeId ? "Generate variations" : "Generate image"}
         >
-          {generating ? 'Generating...' : selectedNodeId ? 'Generate Variations' : 'Generate New Image'}
-          {!generating && <RotateCcw />}
+          <RotateCcw className={cn("h-4 w-4", generating && "animate-spin")}/>
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

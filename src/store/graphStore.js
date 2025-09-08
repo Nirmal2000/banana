@@ -38,6 +38,7 @@ export const useGraphStore = create(
       selectedNodeId: null, // ID of selected node for variations
       viewport: { x: 0, y: 0, zoom: 1 }, // React Flow viewport
       lightboxNodeId: null, // node currently shown in lightbox
+      focusNodeId: null, // request to center on a node
       generationActive: false, // True when SSE is streaming
       variationProgress: {}, // {variationId: currentStep}
       currentExecution: [], // Array of {variationId, plan} for progress bar
@@ -79,6 +80,14 @@ export const useGraphStore = create(
       },
       closeLightbox: () => {
         set({ lightboxNodeId: null });
+      },
+
+      // Canvas focus controls
+      requestFocusNode: (nodeId) => {
+        set({ focusNodeId: nodeId });
+      },
+      clearFocusNode: () => {
+        set({ focusNodeId: null });
       },
 
       // Add new node (for base case)
