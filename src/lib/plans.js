@@ -13,7 +13,7 @@ const PLANS = [
   ],
   // Plan 3: Hue shift
   [
-    { op: 'hue', param: { value: 45 } } // Note: probably 'params' not 'param'
+    { op: 'hue', params: { value: 45 } }
   ],
   // Plan 4: Grayscale
   [

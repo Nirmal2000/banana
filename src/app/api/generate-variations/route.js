@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PLANS } from '@/lib/plans.js';
 import { applyStep } from '@/lib/imageProcessor.js';
+import { generatePlans } from '@/lib/planAgent.js';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import getRedisClient from '@/lib/redis.js';
 
@@ -30,6 +31,7 @@ export async function POST(request) {
         try {
           const redis = await getRedisClient();
           if (!imageBuffer) {
+            try { console.log('[SSE] Base case generation start'); } catch {}
             // Base case: generate single image
             const llm = new ChatGoogleGenerativeAI({
               model: process.env.GOOGLE_IMAGE_MODEL || 'gemini-2.5-flash-image-preview',
@@ -46,28 +48,50 @@ export async function POST(request) {
             }
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'end', message: 'Generation complete' })}\n\n`));
           } else {
-            // Variation case: process 10 variations with sent IDs
+            // Variation case: ask the planner for plan variations and stream execution in parallel
+            const count = variationIds.length;
+            try { console.log('[SSE] Variations generation start', { count }); } catch {}
+            const { plans: planArrays, source } = await generatePlans(prompt, imageBuffer, count);
+
             const plans = {};
             for (let i = 0; i < variationIds.length; i++) {
-              plans[variationIds[i]] = PLANS[i];
+              plans[variationIds[i]] = Array.isArray(planArrays?.[i]) ? planArrays[i] : [];
             }
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'planner-source', source })}\n\n`));
+            try { console.log('[SSE] Planner source', source); } catch {}
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'plans', plans })}\n\n`));
 
-            for (let i = 0; i < variationIds.length; i++) {
-              let currentBuffer = imageBuffer;
-              for (let stepIndex = 0; stepIndex < PLANS[i].length; stepIndex++) {
-                currentBuffer = await applyStep(currentBuffer, PLANS[i][stepIndex]);
-                const dataUrl = `data:image/jpeg;base64,${currentBuffer.toString('base64')}`;
-                const key = `image:${variationIds[i]}:${stepIndex}`;
-                await redis.set(key, dataUrl, { EX: 3600 });
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                  event: 'step-result',
-                  variationId: variationIds[i],
-                  stepIndex,
-                  key })}\n\n`));
-              }
-            }
+            // Execute each variation plan in parallel, steps sequentially
+            await Promise.all(
+              variationIds.map(async (vid, i) => {
+                let currentBuffer = imageBuffer;
+                const steps = Array.isArray(plans[vid]) ? plans[vid] : [];
+                try { console.log('[SSE] Variation start', { vid, steps: steps.length }); } catch {}
+                for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
+                  try {
+                    const step = steps[stepIndex];
+                    try { console.log('[SSE] Step apply', { vid, stepIndex, op: step?.op }); } catch {}
+                    currentBuffer = await applyStep(currentBuffer, step);
+                  } catch (e) {
+                    // On failure, keep previous buffer but continue
+                    // eslint-disable-next-line no-console
+                    console.error('applyStep failed', e);
+                  }
+                  const dataUrl = `data:image/jpeg;base64,${currentBuffer.toString('base64')}`;
+                  const key = `image:${vid}:${stepIndex}`;
+                  await redis.set(key, dataUrl, { EX: 3600 });
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ event: 'step-result', variationId: vid, stepIndex, key })}\n\n`
+                    )
+                  );
+                }
+                try { console.log('[SSE] Variation done', { vid }); } catch {}
+              })
+            );
+
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'end', message: 'All variations complete' })}\n\n`));
+            try { console.log('[SSE] Variations generation done'); } catch {}
           }
         } catch (error) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'error', message: error.message })}\n\n`));

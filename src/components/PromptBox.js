@@ -54,7 +54,13 @@ const PromptBox = () => {
   }, [selectedNodeId]);
 
   const handleEvent = (eventData) => {
-    if (eventData.event === 'plans') {
+    if (eventData.event === 'planner-source') {
+      try { console.info('[Client] planner-source:', eventData.source); } catch {}
+    } else if (eventData.event === 'plans') {
+      try {
+        const planCounts = Object.fromEntries(Object.entries(eventData.plans || {}).map(([k, v]) => [k, (v || []).length]));
+        console.info('[Client] plans received:', planCounts);
+      } catch {}
       if (selectedNodeId) {
         // Variation case, nodes already added
         setPlans(eventData.plans);
@@ -63,6 +69,7 @@ const PromptBox = () => {
         setPlans(eventData.plans);
       }
     } else if (eventData.event === 'step-result') {
+      try { console.debug('[Client] step-result:', { v: eventData.variationId, i: eventData.stepIndex }); } catch {}
       // Fetch the image data using the key
       fetch(`/api/images/${eventData.key}`)
         .then(res => res.text())
@@ -72,6 +79,7 @@ const PromptBox = () => {
         .catch(err => console.error('Failed to fetch image key:', eventData.key, err));
       updateVariationProgress(eventData.variationId, eventData.stepIndex);
     } else if (eventData.event === 'end') {
+      try { console.info('[Client] end:', eventData.message); } catch {}
       setGenerating(false);
       setGenerationActive(false);
       clearExecution();

@@ -80,11 +80,12 @@ Implementation of the core creative engine using Server-Sent Events (SSE) archit
 
 ### Integration Points with Epic 1
 
-- **Zustand Store**: Tracks variation nodes and progress
+- **Zustand Store**: Tracks variation nodes, progress, viewport, and lightbox/focus UI state
 - **Frontend Components**:
-  - `PromptBox`: Initiate SSE requests
-  - `ImageNode`: Display generated variations
-  - `StepsBar`: Show real-time progress
+  - `PromptBox`: Initiates SSE requests and provides streamlined UI for prompts; shows selected-node thumbnail and drag handle
+  - `ImageNode`: Clean, image-first node with embossed styling and selection states
+  - `StepsBar`: Shows real-time progress
+  - `Lightbox`: Fullscreen viewer opened via node double-click
 - **Dexie**: Persistent image storage for variation case (IndexedDB)
 
 #### Persistence & Storage
@@ -92,30 +93,32 @@ Implementation of the core creative engine using Server-Sent Events (SSE) archit
 - **Images**: Persisted in Dexie (`IndexedDB`) per node for cross-session availability.
 - **Ephemeral Step Results**: Cached in Redis and fetched via `/api/images/[key]` during a generation session.
 
-### Remaining Frontend Work
+### Frontend UI/UX Enhancements (Completed)
 
-1. **Zustand Store Updates**:
-   - Add variation node tracking
-   - Progress state management
-   - Real-time image updates
+- **Viewport-aware placement**:
+  - Base-case nodes spawn at the visual center of the current React Flow viewport (pan/zoom aware).
+  - Child variation nodes spawn in a centered row directly below the selected parent.
 
-2. **PromptBox Modifications**:
-   - Base case: Send JSON with new nodeId
-   - Variation case: Send FormData with selected image and 5 variationIds
-   - Client consumes SSE, then fetches each step image via `/api/images/[key]`
+- **Node styling** (`ImageNode`):
+  - Removed titles; image-only nodes.
+  - Bezel-less, slightly embossed card with soft shadow.
+  - Hover shows a faint border; selected shows a white border.
 
-3. **SSE Client Integration**:
-   - EventSource connection
-   - Parse events: plans, step-result, end, error
-   - Update store with progress and images
+- **Lightbox viewer**:
+  - Double-click a node to open a fullscreen lightbox.
+  - Click outside or press Escape to close.
+  - Loads from in-memory image first, falls back to Dexie if needed.
 
-4. **StepsBar Enhancement**:
-   - Track server-side step completion
-   - UI updates for focused/single variation vs overview
+- **PromptBox redesign**:
+  - Flat, darker panel; larger overall footprint for usability.
+  - Left drag handle (vertical 3 dots) for easy dragging.
+  - Input and icon-only generate button inline.
+  - Selected-node tiny thumbnail to the left of the input; hover-only × to clear selection.
+  - Clicking thumbnail centers the canvas on that node.
+  - Container border strengthens on input focus for subtle feedback.
 
-5. **Dexie Integration**:
-   - Store/retrieve images from local IndexedDB
-   - Enable variation case image sending
+- **Misc**:
+  - Refined Clear All action to a compact icon button with subtle blur and border.
 
 ### Environmental Setup
 
@@ -143,12 +146,30 @@ REDIS_URL=redis://localhost:6379
 ✅ Image processing pipeline ready
 ✅ Google AI integration complete
 ✅ Real-time streaming events defined
-✅ Frontend integration complete
+✅ Frontend integration complete (including viewport-aware placement and new UI)
 ✅ State persistence implemented (images excluded from localStorage)
 ✅ Dexie image storage integrated
 ✅ Redis cache for step images integrated
 
 This implementation provides the complete Epic 2 experience - real-time, server-driven image generation with transparent progress updates, persistent state, and cross-session data retention.
+
+## Notable Implementation Details (UI)
+
+- **Zustand store additions**:
+  - `viewport` + `setViewport(viewport)` to track React Flow camera.
+  - `createBaseNode(title, positionOverride)` to allow centered placement.
+  - `getNodePosition(nodeId)` helper for child-row layout.
+  - `lightboxNodeId`, `openLightbox(nodeId)`, `closeLightbox()` for the viewer.
+  - `focusNodeId`, `requestFocusNode(nodeId)`, `clearFocusNode()` to center on demand.
+
+- **React Flow wiring**:
+  - `onMove` updates `viewport` in the store.
+  - `onNodeDoubleClick` opens the `Lightbox`.
+  - `useReactFlow().setCenter` used to focus a node when requested from the PromptBox thumbnail.
+
+- **Placement math**:
+  - Base-center: converts screen center to graph coordinates using viewport pan/zoom; nudges by half node size for visual centering.
+  - Children row: computes a horizontally centered row beneath the parent using approximate node width and spacing.
 
 ## Chat Log Summary & Implementation Notes
 
