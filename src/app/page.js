@@ -16,7 +16,7 @@ const nodeTypes = {
 };
 
 export default function Home() {
-  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode, createUploadedNode, viewport } = useGraphStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode, createUploadedNode, viewport, hydrateAllNodeImages } = useGraphStore();
   const rf = useReactFlow();
 
   // Center on a node when requested
@@ -30,6 +30,11 @@ export default function Home() {
     }
     clearFocusNode();
   }, [focusNodeId, nodes, rf, clearFocusNode]);
+
+  // On initial mount, hydrate images from Dexie so thumbnails render
+  useEffect(() => {
+    hydrateAllNodeImages();
+  }, [hydrateAllNodeImages]);
 
   // Global paste handler: create an uploaded node when an image is pasted
   useEffect(() => {

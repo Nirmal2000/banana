@@ -143,7 +143,7 @@ async function callOpenRouterForPlans({ prompt, imageBuffer, count }) {
       {
         role: 'user',
         content: buildUserContent(
-          `${prompt || ''}\n\nPlease propose ${count} diverse yet reasonable plans.`,
+          `${prompt || ''}\n\nPlease propose ${count} diverse yet reasonable plans. Include exactly one variation that is a single-step googleEdit-only plan (no other operations) with an elaborate prompt. If only one variation is requested, return only that googleEdit-only plan.`,
           imageBuffer,
         ),
       },

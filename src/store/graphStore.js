@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveImage, clearImages, resetDatabase } from '@/lib/dexieStore';
+import { saveImage, clearImages, resetDatabase, getImage } from '@/lib/dexieStore';
 
 const initialNodes = [
   // {
@@ -155,6 +155,24 @@ export const useGraphStore = create(
         }));
         // Persist to Dexie
         await saveImage(nodeId, imageData);
+      },
+
+      // Hydrate images for all nodes from Dexie on app load
+      hydrateAllNodeImages: async () => {
+        const state = get();
+        const updates = await Promise.all(
+          (state.nodes || []).map(async (node) => {
+            const img = await getImage(node.id);
+            return { id: node.id, imageUrl: img };
+          })
+        );
+        set((s) => ({
+          nodes: (s.nodes || []).map((node) => {
+            const found = updates.find((u) => u.id === node.id);
+            if (!found || !found.imageUrl) return node;
+            return { ...node, data: { ...node.data, imageUrl: found.imageUrl, isLoading: false } };
+          })
+        }));
       },
 
       // Set generation active flag

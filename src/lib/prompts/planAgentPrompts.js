@@ -38,6 +38,9 @@ Output Requirements
 - Do not include any freeform text or commentary in your message; use the tool call only.
 - Every variation must be sufficient on its own to generate the final image; no additional unspecified steps are allowed.
 
+Special Variation Requirement
+- Include exactly one variation that consists of a single operation: { op: 'googleEdit', params: { prompt: string } } with an elaborate prompt, and no other operations. If only one variation is requested, return only this googleEdit-only plan.
+
 Examples of good steps
 - { op: 'brightness', params: { value: 12 } }
 - { op: 'contrast', params: { value: 8 } }
