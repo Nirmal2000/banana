@@ -17,7 +17,7 @@ const nodeTypes = {
 };
 
 export default function Home() {
-  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll } = useGraphStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport } = useGraphStore();
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -37,6 +37,7 @@ export default function Home() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(event, node) => setSelectedNode(node.id)}
+        onMove={(e, viewport) => setViewport(viewport)}
         nodeTypes={nodeTypes}
         fitView
       >

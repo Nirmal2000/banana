@@ -3,7 +3,8 @@ import getRedisClient from '@/lib/redis';
 
 export async function GET(request, { params }) {
   try {
-    const { key } = params;
+    // In newer Next.js, params may be a Promise
+    const { key } = await params;
     const redis = await getRedisClient();
     const dataUrl = await redis.get(key);
     if (!dataUrl) {

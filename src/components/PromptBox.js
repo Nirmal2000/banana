@@ -27,6 +27,7 @@ const PromptBox = () => {
     updateVariationProgress,
     clearExecution,
     generateVariationIds,
+    viewport,
   } = useGraphStore();
 
   const handleEvent = (eventData) => {
@@ -66,8 +67,8 @@ const PromptBox = () => {
 
     let response;
     if (selectedNodeId) {
-      // Variation case
-      const variationIds = generateVariationIds(10);
+      // Variation case: generate 5 variations
+      const variationIds = generateVariationIds(5);
       const imageData = await getImage(selectedNodeId);
 
       if (!imageData) {
@@ -99,7 +100,17 @@ const PromptBox = () => {
       }
     } else {
       // Base case
-      const newNodeId = createBaseNode();
+      // Compute center of current viewport in graph coordinates
+      const { x = 0, y = 0, zoom = 1 } = viewport || {};
+      const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+      const height = typeof window !== 'undefined' ? window.innerHeight : 0;
+      const centerPos = {
+        // Subtract half of typical node size to visually center the node
+        x: (-x + width / 2) / zoom - 50,
+        y: (-y + height / 2) / zoom - 60,
+      };
+
+      const newNodeId = createBaseNode(undefined, centerPos);
       response = await fetch('/api/generate-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -36,6 +36,7 @@ export const useGraphStore = create(
       nodes: initialNodes,
       edges: initialEdges,
       selectedNodeId: null, // ID of selected node for variations
+      viewport: { x: 0, y: 0, zoom: 1 }, // React Flow viewport
       generationActive: false, // True when SSE is streaming
       variationProgress: {}, // {variationId: currentStep}
       currentExecution: [], // Array of {variationId, plan} for progress bar
@@ -66,6 +67,11 @@ export const useGraphStore = create(
         set({ selectedNodeId: nodeId });
       },
 
+      // Track React Flow viewport
+      setViewport: (viewport) => {
+        set({ viewport });
+      },
+
       // Add new node (for base case)
       addNode: (node) => {
         set((state) => ({
@@ -74,12 +80,13 @@ export const useGraphStore = create(
       },
 
       // Create new base node
-      createBaseNode: (title = 'New Image') => {
+      createBaseNode: (title = 'New Image', positionOverride) => {
         const newId = uuidv4();
         const newNode = {
           id: newId,
           type: 'imageNode',
-          position: { x: 100 + get().nodes.length * 50, y: 100 },
+          // Center on screen if provided, otherwise fall back to incremental
+          position: positionOverride || { x: 100 + get().nodes.length * 50, y: 100 },
           data: { imageUrl: '', title, isLoading: true, variationId: newId },
         };
         get().addNode(newNode);
@@ -171,8 +178,14 @@ export const useGraphStore = create(
     }),
     {
       name: 'graph-storage',
+      // Avoid persisting large image data URLs in localStorage to prevent QuotaExceededError.
+      // We still keep images in memory during a session and persist them to Dexie (IndexedDB).
       partialize: (state) => ({
-        nodes: state.nodes,
+        // Strip imageUrl from each node before persisting
+        nodes: state.nodes.map((n) => {
+          const { imageUrl, ...restData } = n.data || {};
+          return { ...n, data: restData };
+        }),
         edges: state.edges,
         selectedNodeId: state.selectedNodeId,
       }),

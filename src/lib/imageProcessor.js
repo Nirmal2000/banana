@@ -107,6 +107,7 @@ async function applyStep(buffer, step) {
       case 'googleEdit':
         // Convert buffer to base64
         const base64 = buffer.toString('base64');
+        console.log("prompt", params.prompt)
         const messages = [await toUserMessage(params.prompt, base64)];
         const aiMessage = await llm.invoke(messages, { response_modalities: ['TEXT', 'IMAGE'] });
         const dataUrl = await extractImageData(aiMessage);
