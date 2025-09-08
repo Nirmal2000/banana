@@ -224,6 +224,16 @@ const PromptBox = () => {
     };
   }, [isDragging, dragOffset]);
 
+  // Set default position: bottom-center on initial mount
+  useEffect(() => {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const height = typeof window !== 'undefined' ? window.innerHeight : 0;
+    // Approx known width ~520px; center horizontally. Place ~96px from bottom.
+    const defaultX = Math.max(12, Math.round(width / 2 - 520 / 2));
+    const defaultY = Math.max(12, Math.round(height - 96));
+    setPosition({ x: defaultX, y: defaultY });
+  }, []);
+
   return (
     <div
       className={cn(

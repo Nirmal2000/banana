@@ -16,7 +16,7 @@ const nodeTypes = {
 };
 
 export default function Home() {
-  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode } = useGraphStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode, createUploadedNode, viewport } = useGraphStore();
   const rf = useReactFlow();
 
   // Center on a node when requested
@@ -30,6 +30,38 @@ export default function Home() {
     }
     clearFocusNode();
   }, [focusNodeId, nodes, rf, clearFocusNode]);
+
+  // Global paste handler: create an uploaded node when an image is pasted
+  useEffect(() => {
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items || [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+          const file = it.getAsFile();
+          if (!file) continue;
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const dataUrl = reader.result;
+            const { x = 0, y = 0, zoom = 1 } = viewport || {};
+            const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+            const height = typeof window !== 'undefined' ? window.innerHeight : 0;
+            const centerPos = {
+              x: (-x + width / 2) / zoom - 50,
+              y: (-y + height / 2) / zoom - 60,
+            };
+            const id = await createUploadedNode(String(dataUrl), 'Pasted Image', centerPos);
+            setSelectedNode(id);
+          };
+          reader.readAsDataURL(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [viewport, createUploadedNode, setSelectedNode]);
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>

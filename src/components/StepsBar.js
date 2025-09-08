@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useGraphStore } from '@/store/graphStore';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +68,17 @@ const StepsBar = () => {
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+
+  // Default position: top-right below the trash button
+  // Runs once on mount; users can drag to reposition afterwards
+  useEffect(() => {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const panelW = 260; // matches class w-[260px]
+    const rightGap = 24; // a bit more than trash's right-4
+    const top = 84; // below trash
+    const left = Math.max(12, width - panelW - rightGap);
+    setPosition({ x: left, y: top });
+  }, []);
 
   // Hide when no image is selected or selected is an uploaded node
   if (!selectedNodeId) return null;
