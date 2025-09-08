@@ -210,7 +210,7 @@ const PromptBox = () => {
       className={cn(
         "fixed z-50",
         "rounded-xl bg-neutral-950/95 backdrop-blur px-4 py-3 min-w-[520px]",
-        "border border-white/20",
+        "border border-white/25 focus-within:border-white/60 transition-colors duration-150",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_10px_30px_rgba(0,0,0,0.45)]"
       )}
       style={{ top: position.y, left: position.x }}

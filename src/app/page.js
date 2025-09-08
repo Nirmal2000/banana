@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  ReactFlow,
-  Background,
-  MiniMap,
-  Controls,
-} from '@xyflow/react';
+import { ReactFlow, Background, MiniMap, Controls } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import ImageNode from '../components/ImageNode';
 import PromptBox from '../components/PromptBox';
@@ -14,6 +9,7 @@ import Lightbox from '../components/Lightbox';
 import { useGraphStore } from '../store/graphStore';
 import { useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
+import { Trash2 } from 'lucide-react';
 
 const nodeTypes = {
   imageNode: ImageNode,
@@ -41,10 +37,11 @@ export default function Home() {
       <StepsBar />
       <button
         onClick={() => clearAll()}
-        className="fixed top-4 right-4 z-50 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors duration-200 font-medium"
-        title="Clear all data and reset to initial state"
+        className="fixed top-4 right-4 z-50 h-10 w-10 grid place-items-center rounded-full border border-white/20 bg-black/30 backdrop-blur text-white hover:border-white/50 hover:bg-black/40 active:scale-[0.98] transition-all duration-150 shadow-[0_6px_20px_rgba(0,0,0,0.35)]"
+        title="Clear graph"
+        aria-label="Clear all"
       >
-        🔄 Clear All
+        <Trash2 className="h-5 w-5" />
       </button>
       <ReactFlow
         className="dark"
