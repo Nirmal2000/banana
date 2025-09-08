@@ -28,6 +28,7 @@ const PromptBox = () => {
     clearExecution,
     generateVariationIds,
     viewport,
+    getNodePosition,
   } = useGraphStore();
 
   const handleEvent = (eventData) => {
@@ -90,8 +91,16 @@ const PromptBox = () => {
       });
 
       if (response.ok) {
-        // Add pending nodes
-        const positions = variationIds.map((_, i) => ({ x: 400 + i * 150, y: 300 }));
+        // Add pending nodes directly under the selected parent
+        const parentPos = getNodePosition(selectedNodeId) || { x: 0, y: 0 };
+        const count = variationIds.length;
+        const nodeW = 120; // approximate node width for layout
+        const gapX = 40;   // horizontal gap between variations
+        const rowY = parentPos.y + 180; // vertical spacing below parent
+        const totalW = count * nodeW + (count - 1) * gapX;
+        const parentCenterX = parentPos.x + nodeW / 2;
+        const startX = parentCenterX - totalW / 2;
+        const positions = variationIds.map((_, i) => ({ x: Math.round(startX + i * (nodeW + gapX)), y: rowY }));
         addVariationNodes(variationIds, selectedNodeId, positions);
       } else {
         setGenerating(false);

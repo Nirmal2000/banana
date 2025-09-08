@@ -10,6 +10,7 @@ import '@xyflow/react/dist/style.css';
 import ImageNode from '../components/ImageNode';
 import PromptBox from '../components/PromptBox';
 import StepsBar from '../components/StepsBar';
+import Lightbox from '../components/Lightbox';
 import { useGraphStore } from '../store/graphStore';
 
 const nodeTypes = {
@@ -17,7 +18,7 @@ const nodeTypes = {
 };
 
 export default function Home() {
-  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport } = useGraphStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox } = useGraphStore();
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -37,6 +38,7 @@ export default function Home() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(event, node) => setSelectedNode(node.id)}
+        onNodeDoubleClick={(event, node) => openLightbox(node.id)}
         onMove={(e, viewport) => setViewport(viewport)}
         nodeTypes={nodeTypes}
         fitView
@@ -53,6 +55,7 @@ export default function Home() {
           maskColor="rgba(0, 0, 0, 0.5)"
         />
       </ReactFlow>
+      <Lightbox />
     </div>
   );
 }

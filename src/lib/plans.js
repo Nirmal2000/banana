@@ -13,16 +13,37 @@ const PLANS = [
   ],
   // Plan 3: Hue shift
   [
-    { op: 'hue', params: { value: 45 } }
+    { op: 'hue', param: { value: 45 } } // Note: probably 'params' not 'param'
   ],
   // Plan 4: Grayscale
   [
     { op: 'filter', params: { type: 'grayscale' } }
-  ],  
-  // Plan 5: Google AI edit
+  ],
+  // Plan 5: Sepia tone
   [
-    { op: 'googleEdit', params: { prompt: 'Enhance colors and details' } }
-  ]
+    { op: 'filter', params: { type: 'sepia' } }
+  ],
+  // Plan 6: Brightness decrease and saturation increase
+//   [
+//     { op: 'brightness', params: { value: -15 } },
+//     { op: 'saturation', params: { value: 20 } }
+//   ],
+//   // Plan 7: Contrast increase
+//   [
+//     { op: 'contrast', params: { value: 25 } }
+//   ],
+//   // Plan 8: Tint with blue
+//   [
+//     { op: 'tint', params: { color: '#0000ff', strength: 20 } }
+//   ],
+//   // Plan 9: Rotate 90 degrees
+//   [
+//     { op: 'rotate', params: { degrees: 90 } }
+//   ],
+  // Plan 10: Google AI edit
+//   [
+//     { op: 'googleEdit', params: { prompt: 'Enhance colors and details' } }
+//   ]
 ];
 
 module.exports = { PLANS };

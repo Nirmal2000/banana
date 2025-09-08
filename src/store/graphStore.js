@@ -37,6 +37,7 @@ export const useGraphStore = create(
       edges: initialEdges,
       selectedNodeId: null, // ID of selected node for variations
       viewport: { x: 0, y: 0, zoom: 1 }, // React Flow viewport
+      lightboxNodeId: null, // node currently shown in lightbox
       generationActive: false, // True when SSE is streaming
       variationProgress: {}, // {variationId: currentStep}
       currentExecution: [], // Array of {variationId, plan} for progress bar
@@ -70,6 +71,14 @@ export const useGraphStore = create(
       // Track React Flow viewport
       setViewport: (viewport) => {
         set({ viewport });
+      },
+
+      // Lightbox controls
+      openLightbox: (nodeId) => {
+        set({ lightboxNodeId: nodeId });
+      },
+      closeLightbox: () => {
+        set({ lightboxNodeId: null });
       },
 
       // Add new node (for base case)
@@ -150,6 +159,12 @@ export const useGraphStore = create(
       getNodeImage: (nodeId) => {
         const node = get().nodes.find(n => n.id === nodeId);
         return node ? node.data.imageUrl : null;
+      },
+
+      // Get node position by ID
+      getNodePosition: (nodeId) => {
+        const node = get().nodes.find(n => n.id === nodeId);
+        return node ? node.position : null;
       },
 
       // Generate unique IDs for variations
