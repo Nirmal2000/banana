@@ -42,6 +42,8 @@ export const useGraphStore = create(
       generationActive: false, // True when SSE is streaming
       variationProgress: {}, // {variationId: currentStep}
       currentExecution: [], // Array of {variationId, plan} for progress bar
+      plannerSource: null, // e.g., which planner/model produced plans
+      eventDetails: {}, // { [variationId]: { [stepIndex]: detail } }
 
       onNodesChange: (changes) => {
         set((state) => {
@@ -146,10 +148,33 @@ export const useGraphStore = create(
         set({ generationActive: active });
       },
 
-      // Set plans and current execution
+      // Planner source metadata
+      setPlannerSource: (source) => {
+        set({ plannerSource: source || null });
+      },
+
+      // Record per-step event details (e.g., googleedit)
+      addEventDetail: (variationId, stepIndex, detail) => {
+        set((state) => ({
+          eventDetails: {
+            ...state.eventDetails,
+            [variationId]: { ...(state.eventDetails?.[variationId] || {}), [stepIndex]: detail },
+          },
+        }));
+      },
+
+      // Set plans and current execution (merge, don't replace) so prior runs persist
       setPlans: (plans) => {
-        const execution = Object.entries(plans).map(([id, plan]) => ({ variationId: id, plan }));
-        set({ currentExecution: execution });
+        set((state) => {
+          const existingMap = Object.fromEntries(
+            (state.currentExecution || []).map((e) => [e.variationId, e.plan])
+          );
+          for (const [id, plan] of Object.entries(plans || {})) {
+            existingMap[id] = plan;
+          }
+          const merged = Object.entries(existingMap).map(([id, plan]) => ({ variationId: id, plan }));
+          return { currentExecution: merged };
+        });
       },
 
       // Update progress for a variation
@@ -161,7 +186,7 @@ export const useGraphStore = create(
 
       // Clear execution on end
       clearExecution: () => {
-        set({ currentExecution: [], variationProgress: {} });
+        set({ currentExecution: [], variationProgress: {}, plannerSource: null, eventDetails: {} });
       },
 
       // Get node image URL by ID

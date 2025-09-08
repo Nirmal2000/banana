@@ -32,18 +32,25 @@ export async function POST(request) {
           const redis = await getRedisClient();
           if (!imageBuffer) {
             try { console.log('[SSE] Base case generation start'); } catch {}
-            // Base case: generate single image
-            const llm = new ChatGoogleGenerativeAI({
-              model: process.env.GOOGLE_IMAGE_MODEL || 'gemini-2.5-flash-image-preview',
-              temperature: 0
-            });
+            // Base case: treat as a single-step googleEdit plan
+            const model = process.env.GOOGLE_IMAGE_MODEL || 'gemini-2.5-flash-image-preview';
+            const llm = new ChatGoogleGenerativeAI({ model, temperature: 0 });
+
+            // Emit planner source + single-step plan before execution for consistent UX
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'planner-source', source: `google:${model}` })}\n\n`));
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ event: 'plans', plans: { [nodeId]: [{ op: 'googleEdit', params: { prompt } }] } })}\n\n`)
+              )
+            // );
+
             const messages = [{ role: 'user', content: prompt }];
             const aiMessage = await llm.invoke(messages, { response_modalities: ['IMAGE'] });
             const dataUrl = extractImageDataUrl(aiMessage);
             if (dataUrl) {
               const key = `image:${nodeId}:0`;
               await redis.set(key, dataUrl, { EX: 3600 });
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'plans', plans: { [nodeId]: [] } })}\n\n`));
+              // Only emit the standard step-result; omit extra googleedit event for basegen
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'step-result', variationId: nodeId, stepIndex: 0, key })}\n\n`));
             }
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ event: 'end', message: 'Generation complete' })}\n\n`));

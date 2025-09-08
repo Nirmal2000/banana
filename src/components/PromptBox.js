@@ -22,6 +22,8 @@ const PromptBox = () => {
     addVariationNodes,
     updateNodeImage,
     setGenerationActive,
+    setPlannerSource,
+    addEventDetail,
     setPlans,
     updateVariationProgress,
     clearExecution,
@@ -56,6 +58,7 @@ const PromptBox = () => {
   const handleEvent = (eventData) => {
     if (eventData.event === 'planner-source') {
       try { console.info('[Client] planner-source:', eventData.source); } catch {}
+      setPlannerSource(eventData.source);
     } else if (eventData.event === 'plans') {
       try {
         const planCounts = Object.fromEntries(Object.entries(eventData.plans || {}).map(([k, v]) => [k, (v || []).length]));
@@ -78,11 +81,17 @@ const PromptBox = () => {
         })
         .catch(err => console.error('Failed to fetch image key:', eventData.key, err));
       updateVariationProgress(eventData.variationId, eventData.stepIndex);
+    } else if (eventData.event === 'googleedit') {
+      try { console.info('[Client] googleedit:', { v: eventData.variationId, i: eventData.stepIndex }); } catch {}
+      addEventDetail(eventData.variationId, eventData.stepIndex, {
+        type: 'googleedit',
+        model: eventData.model,
+        prompt: eventData.prompt,
+      });
     } else if (eventData.event === 'end') {
       try { console.info('[Client] end:', eventData.message); } catch {}
       setGenerating(false);
       setGenerationActive(false);
-      clearExecution();
     } else if (eventData.event === 'error') {
       console.error('SSE error:', eventData.message);
       setGenerating(false);

@@ -1,38 +1,51 @@
 'use client';
 
-import { useState } from 'react';
-import { Play, Pause, Square } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useGraphStore } from '@/store/graphStore';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+// No action buttons for now; display-only panel
 
 const StepsBar = () => {
   const [position, setPosition] = useState({ x: 500, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  const { generationActive, currentExecution, variationProgress, setGenerationActive, clearExecution } = useGraphStore();
+  const {
+    selectedNodeId,
+    generationActive,
+    currentExecution,
+    variationProgress,
+    plannerSource,
+    eventDetails,
+    setGenerationActive,
+    clearExecution,
+  } = useGraphStore();
 
-  const handleCancel = () => {
-    setGenerationActive(false);
-    clearExecution();
-  };
+  // Action buttons removed; panel is display-only
 
-  // Get current progress display
-  const getCurrentStepText = () => {
-    if (!generationActive || currentExecution.length === 0) {
-      return "Ready";
+  // Derive execution data for selected image
+  const selectedExec = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return currentExecution.find(e => e.variationId === selectedNodeId) || null;
+  }, [selectedNodeId, currentExecution]);
+
+  const currentIndex = selectedExec ? (variationProgress[selectedExec.variationId] ?? -1) : -1;
+  const totalSteps = selectedExec ? (selectedExec.plan?.length || 0) : 0;
+  const isComplete = selectedExec ? (totalSteps > 0 && currentIndex >= totalSteps - 1) : false;
+
+  const headerText = useMemo(() => {
+    if (!selectedNodeId) return '';
+    if (!generationActive && !selectedExec) return 'No active plan for this image';
+    if (selectedExec && totalSteps === 0) return 'Base generation (no steps)';
+    if (selectedExec && totalSteps > 0) {
+      if (isComplete) return `Completed ${totalSteps} steps`;
+      const nextStep = Math.max(0, currentIndex + 1);
+      const label = selectedExec.plan?.[nextStep]?.op || '…';
+      return `Step ${Math.min(nextStep + 1, totalSteps)} of ${totalSteps}: ${label}`;
     }
-    const exec = currentExecution[0]; // Focus on first variation
-    const currentStep = variationProgress[exec.variationId] || 0;
-    if (currentStep < exec.plan.length) {
-      const op = exec.plan[currentStep].op;
-      return `Variation 1 of ${currentExecution.length}: Step ${currentStep + 1} of ${exec.plan.length}: ${op}`;
-    } else {
-      return `Variation 1: Completed`;
-    }
-  };
+    return 'Ready';
+  }, [selectedNodeId, generationActive, selectedExec, totalSteps, isComplete, currentIndex]);
 
   const handleMouseDown = (e) => {
     setDragOffset({
@@ -55,6 +68,9 @@ const StepsBar = () => {
     setIsDragging(false);
   };
 
+  // Hide completely when no image is selected
+  if (!selectedNodeId) return null;
+
   return (
     <Card
       onMouseDown={handleMouseDown}
@@ -62,7 +78,7 @@ const StepsBar = () => {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       className={cn(
-        "fixed z-50 min-w-[300px] min-h-[80px] cursor-grab",
+        "fixed z-50 w-[260px] cursor-grab",
         isDragging && "cursor-grabbing"
       )}
       style={{
@@ -71,29 +87,57 @@ const StepsBar = () => {
       }}
     >
       <CardHeader>
-        <CardTitle>Steps Bar</CardTitle>
+        <CardTitle className="text-sm">Selected Image Activity</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-sm text-muted-foreground">
-          {getCurrentStepText()}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            disabled={!generationActive}
-            onClick={() => {}} // For future play/pause
-          >
-            <Play />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!generationActive}
-            onClick={handleCancel}
-          >
-            <Square />
-          </Button>
-        </div>
+      <CardContent className="space-y-3">
+        {/* Summary line */}
+        <div className="text-sm text-muted-foreground">{headerText}</div>
+
+        {/* Planner source if available */}
+        {plannerSource && (
+          <div className="text-[11px] text-muted-foreground/80">
+            Planner: <span className="font-mono">{plannerSource}</span>
+          </div>
+        )}
+
+        {/* Plan steps for selected image */}
+        {selectedExec && totalSteps > 0 && (
+          <div className="rounded-md border p-2 max-h-48 overflow-auto">
+            {selectedExec.plan.map((step, idx) => {
+              const done = currentIndex >= idx;
+              return (
+                <div key={idx} className={cn("flex items-start gap-2 py-1 text-xs", done ? "opacity-100" : "opacity-80")}
+                >
+                  <div className={cn(
+                    "h-5 w-5 shrink-0 inline-flex items-center justify-center rounded-sm text-[10px] font-mono leading-none",
+                    done ? "bg-green-600 text-white" : "bg-neutral-200 text-neutral-700"
+                  )}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {step.op}
+                      {done && <span className="ml-2 text-[10px] text-green-600">done</span>}
+                    </div>
+                    {step.params && (
+                      <div className="font-mono text-[10px] text-neutral-500 break-words">
+                        {JSON.stringify(step.params)}
+                      </div>
+                    )}
+                    {eventDetails?.[selectedExec.variationId]?.[idx] && (
+                      <div className="mt-1 text-[10px] text-neutral-500">
+                        <div className="font-mono">{JSON.stringify(eventDetails[selectedExec.variationId][idx])}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Actions removed: display-only */}
       </CardContent>
     </Card>
   );
