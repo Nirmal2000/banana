@@ -8,7 +8,9 @@ const ImageNode = ({ data }) => {
     <div className="image-node">
       <div className="image-wrap">
         {data.isLoading ? (
-          <div className="image-skeleton">Generating...</div>
+          <div className="image-skeleton" aria-label="Loading image">
+            <div className="w-6 h-6 border-2 border-neutral-500/70 border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : (
           <img
             src={
