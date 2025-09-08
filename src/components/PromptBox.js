@@ -19,6 +19,7 @@ const PromptBox = () => {
 
   const {
     selectedNodeId,
+    selectedNodeIds,
     createBaseNode,
     createUploadedNode,
     addVariationNodes,
@@ -34,28 +35,27 @@ const PromptBox = () => {
     getNodePosition,
     requestFocusNode,
     setSelectedNode,
+    setSelectedNodes,
+    removeSelectedNode,
   } = useGraphStore();
 
-  // Load a tiny thumbnail for the selected node without affecting layout
-  const [selectedThumb, setSelectedThumb] = useState(null);
+  // Load thumbnails for all selected nodes
+  const [selectedThumbs, setSelectedThumbs] = useState([]); // [{id,url}]
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
     (async () => {
-      if (!selectedNodeId) {
-        if (active) setSelectedThumb(null);
-        return;
+      const ids = Array.isArray(selectedNodeIds) && selectedNodeIds.length > 0
+        ? selectedNodeIds
+        : (selectedNodeId ? [selectedNodeId] : []);
+      const results = [];
+      for (const id of ids) {
+        const img = useGraphStore.getState().getNodeImage(id) || (await getImage(id));
+        results.push({ id, url: img || null });
       }
-      // try in-memory first via updateNodeImage flow
-      const img = useGraphStore.getState().getNodeImage(selectedNodeId);
-      if (img) {
-        if (active) setSelectedThumb(img);
-        return;
-      }
-      const persisted = await getImage(selectedNodeId);
-      if (active) setSelectedThumb(persisted || null);
+      if (!cancelled) setSelectedThumbs(results);
     })();
-    return () => { active = false; };
-  }, [selectedNodeId]);
+    return () => { cancelled = true; };
+  }, [selectedNodeId, selectedNodeIds]);
 
   const handleEvent = (eventData) => {
     if (eventData.event === 'planner-source') {
@@ -108,10 +108,11 @@ const PromptBox = () => {
     setGenerationActive(true);
 
     let response;
-    if (selectedNodeId) {
+    if (Array.isArray(selectedNodeIds) && selectedNodeIds.length === 1) {
+      const onlyId = selectedNodeIds[0];
       // Variation case: generate 5 variations
       const variationIds = generateVariationIds(5);
-      const imageData = await getImage(selectedNodeId);
+      const imageData = await getImage(onlyId);
 
       if (!imageData) {
         alert('Selected node has no saved image');
@@ -133,7 +134,7 @@ const PromptBox = () => {
 
       if (response.ok) {
         // Add pending nodes directly under the selected parent
-        const parentPos = getNodePosition(selectedNodeId) || { x: 0, y: 0 };
+        const parentPos = getNodePosition(onlyId) || { x: 0, y: 0 };
         const count = variationIds.length;
         const nodeW = 120; // approximate node width for layout
         const gapX = 40;   // horizontal gap between variations
@@ -142,8 +143,41 @@ const PromptBox = () => {
         const parentCenterX = parentPos.x + nodeW / 2;
         const startX = parentCenterX - totalW / 2;
         const positions = variationIds.map((_, i) => ({ x: Math.round(startX + i * (nodeW + gapX)), y: rowY }));
-        addVariationNodes(variationIds, selectedNodeId, positions);
+        addVariationNodes(variationIds, onlyId, positions);
       } else {
+        setGenerating(false);
+        setGenerationActive(false);
+        return;
+      }
+    } else if (Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1) {
+      // Multi-select mashup
+      const { x = 0, y = 0, zoom = 1 } = viewport || {};
+      const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+      const height = typeof window !== 'undefined' ? window.innerHeight : 0;
+      const centerPos = {
+        x: (-x + width / 2) / zoom - 50,
+        y: (-y + height / 2) / zoom - 60,
+      };
+      const newNodeId = createBaseNode('Mashup', centerPos);
+
+      const formData = new FormData();
+      formData.append('prompt', promptValue);
+      formData.append('nodeId', newNodeId);
+      for (const id of selectedNodeIds) {
+        const dataUrl = useGraphStore.getState().getNodeImage(id) || (await getImage(id));
+        if (!dataUrl) continue;
+        const base64 = dataUrl.split(',')[1];
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        formData.append('images', blob, `img-${id}.jpg`);
+      }
+
+      response = await fetch('/api/generate-multi-edit', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
         setGenerating(false);
         setGenerationActive(false);
         return;
@@ -258,26 +292,34 @@ const PromptBox = () => {
           <MoreVertical className="w-4 h-4" />
         </button>
 
-        {/* Selected thumbnail to the left of input */}
-        {selectedNodeId && selectedThumb && (
-          <div className="relative group select-none">
-            <button
-              className="block w-9 h-9 rounded-md overflow-hidden shadow ring-1 ring-neutral-700 hover:ring-neutral-500"
-              onClick={() => requestFocusNode(selectedNodeId)}
-              title="Focus selected node"
-            >
-              <img src={selectedThumb} alt="Selected preview" className="w-full h-full object-cover" />
-            </button>
-            <button
-              className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-neutral-100 text-neutral-900 hidden group-hover:flex items-center justify-center shadow"
-              onClick={() => {
-                setSelectedNode(null);
-                setSelectedThumb(null);
-              }}
-              title="Clear selection"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        {/* Selected thumbnails (supports multi-select) */}
+        {Array.isArray(selectedThumbs) && selectedThumbs.length > 0 && (
+          <div className="flex items-center gap-2 max-w-[124px] overflow-x-auto scrollbar-thin">
+            {selectedThumbs.map(({ id, url }) => (
+              <div key={id} className="relative group select-none shrink-0">
+                <button
+                  className="block w-9 h-9 rounded-md overflow-hidden shadow ring-1 ring-neutral-700 hover:ring-neutral-500"
+                  onClick={() => requestFocusNode(id)}
+                  title="Focus node"
+                >
+                  {url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={url} alt="Selected" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-neutral-900 grid place-items-center">
+                      <div className="w-3 h-3 border-2 border-neutral-500/70 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </button>
+                <button
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-neutral-100 text-neutral-900 hidden group-hover:flex items-center justify-center shadow"
+                  onClick={() => removeSelectedNode(id)}
+                  title="Remove from selection"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
         <Input
@@ -297,7 +339,13 @@ const PromptBox = () => {
           onClick={handleGenerate}
           disabled={!promptValue.trim() || generating}
           className="h-10 w-10 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
-          title={selectedNodeId ? "Generate variations" : "Generate image"}
+          title={
+            Array.isArray(selectedNodeIds) && selectedNodeIds.length > 1
+              ? 'Generate mashup'
+              : (Array.isArray(selectedNodeIds) && selectedNodeIds.length === 1) || selectedNodeId
+              ? 'Generate variations'
+              : 'Generate image'
+          }
         >
           <RotateCcw className={cn("h-4 w-4", generating && "animate-spin")}/>
         </Button>

@@ -16,7 +16,7 @@ const nodeTypes = {
 };
 
 export default function Home() {
-  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode, createUploadedNode, viewport, hydrateAllNodeImages } = useGraphStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, setSelectedNode, setSelectedNodes, selectedNodeIds, clearAll, setViewport, openLightbox, focusNodeId, clearFocusNode, createUploadedNode, viewport, hydrateAllNodeImages } = useGraphStore();
   const rf = useReactFlow();
 
   // Center on a node when requested
@@ -89,6 +89,12 @@ export default function Home() {
         onNodeClick={(event, node) => setSelectedNode(node.id)}
         onNodeDoubleClick={(event, node) => openLightbox(node.id)}
         onMove={(e, viewport) => setViewport(viewport)}
+        onSelectionChange={(params) => {
+          const ids = Array.isArray(params?.nodes) ? params.nodes.map((n) => n.id) : [];
+          const curr = Array.isArray(selectedNodeIds) ? selectedNodeIds : [];
+          const equal = ids.length === curr.length && ids.every((id) => curr.includes(id));
+          if (!equal) setSelectedNodes(ids);
+        }}
         nodeTypes={nodeTypes}
         fitView
       >

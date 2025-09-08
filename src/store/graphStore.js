@@ -35,7 +35,8 @@ export const useGraphStore = create(
     (set, get) => ({
       nodes: initialNodes,
       edges: initialEdges,
-      selectedNodeId: null, // ID of selected node for variations
+      selectedNodeId: null, // ID of selected node for variations (primary)
+      selectedNodeIds: [], // support multi-select for mashups
       viewport: { x: 0, y: 0, zoom: 1 }, // React Flow viewport
       lightboxNodeId: null, // node currently shown in lightbox
       focusNodeId: null, // request to center on a node
@@ -52,10 +53,17 @@ export const useGraphStore = create(
             change => change.type === 'remove' && change.id === state.selectedNodeId
           );
 
+          // Remove any deleted nodes from multi-selection
+          const removedIds = new Set(
+            changes.filter((c) => c.type === 'remove').map((c) => c.id)
+          );
+          const nextSelectedIds = (state.selectedNodeIds || []).filter((id) => !removedIds.has(id));
+
           return {
             nodes: applyNodeChanges(changes, state.nodes),
             // Clear selectedNodeId if the selected node is being deleted
             ...(selectedNodeToDelete && { selectedNodeId: null }),
+            selectedNodeIds: nextSelectedIds,
           };
         });
       },
@@ -66,9 +74,22 @@ export const useGraphStore = create(
         }));
       },
 
-      // Set selected node
+      // Set selected node (single)
       setSelectedNode: (nodeId) => {
-        set({ selectedNodeId: nodeId });
+        set({ selectedNodeId: nodeId, selectedNodeIds: nodeId ? [nodeId] : [] });
+      },
+
+      // Set selected nodes (multi)
+      setSelectedNodes: (nodeIds) => {
+        const ids = Array.isArray(nodeIds) ? nodeIds : [];
+        set({ selectedNodeIds: ids, selectedNodeId: ids[0] || null });
+      },
+
+      // Remove a node from selection (multi)
+      removeSelectedNode: (nodeId) => {
+        const curr = get().selectedNodeIds || [];
+        const filtered = curr.filter((id) => id !== nodeId);
+        set({ selectedNodeIds: filtered, selectedNodeId: filtered[0] || null });
       },
 
       // Track React Flow viewport
@@ -256,6 +277,7 @@ export const useGraphStore = create(
           nodes: initialNodes,
           edges: initialEdges,
           selectedNodeId: null,
+          selectedNodeIds: [],
           generationActive: false,
           variationProgress: {},
           currentExecution: [],
@@ -274,6 +296,7 @@ export const useGraphStore = create(
         }),
         edges: state.edges,
         selectedNodeId: state.selectedNodeId,
+        selectedNodeIds: state.selectedNodeIds,
       }),
     }
   )
