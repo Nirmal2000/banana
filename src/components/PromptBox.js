@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw, X, MoreVertical } from "lucide-react";
+import { RotateCcw, X, MoreVertical, ImagePlus } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { getImage } from "@/lib/dexieStore";
 import { cn } from "@/lib/utils";
@@ -15,10 +15,12 @@ const PromptBox = () => {
   const [promptValue, setPromptValue] = useState('');
   const [generating, setGenerating] = useState(false);
   const eventSourceRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const {
     selectedNodeId,
     createBaseNode,
+    createUploadedNode,
     addVariationNodes,
     updateNodeImage,
     setGenerationActive,
@@ -288,6 +290,45 @@ const PromptBox = () => {
           title={selectedNodeId ? "Generate variations" : "Generate image"}
         >
           <RotateCcw className={cn("h-4 w-4", generating && "animate-spin")}/>
+        </Button>
+
+        {/* Upload button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const dataUrl = reader.result;
+              // Compute center similar to base case placement
+              const { x = 0, y = 0, zoom = 1 } = viewport || {};
+              const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+              const height = typeof window !== 'undefined' ? window.innerHeight : 0;
+              const centerPos = {
+                x: (-x + width / 2) / zoom - 50,
+                y: (-y + height / 2) / zoom - 60,
+              };
+              const id = await createUploadedNode(String(dataUrl), 'Uploaded Image', centerPos);
+              setSelectedNode(id);
+              // reset input to allow re-upload of the same file
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            };
+            reader.readAsDataURL(file);
+          }}
+        />
+        <Button
+          size="icon"
+          variant="secondary"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={generating}
+          className="h-10 w-10 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700"
+          title="Upload image"
+        >
+          <ImagePlus className="h-4 w-4" />
         </Button>
       </div>
     </div>

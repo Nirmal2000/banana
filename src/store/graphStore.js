@@ -107,9 +107,23 @@ export const useGraphStore = create(
           type: 'imageNode',
           // Center on screen if provided, otherwise fall back to incremental
           position: positionOverride || { x: 100 + get().nodes.length * 50, y: 100 },
-          data: { imageUrl: '', title, isLoading: true, variationId: newId },
+          data: { imageUrl: '', title, isLoading: true, variationId: newId, source: 'basegen' },
         };
         get().addNode(newNode);
+        return newId;
+      },
+
+      // Create an uploaded image node (no steps; StepsBar should be hidden for selection)
+      createUploadedNode: async (imageData, title = 'Uploaded Image', positionOverride) => {
+        const newId = uuidv4();
+        const newNode = {
+          id: newId,
+          type: 'imageNode',
+          position: positionOverride || { x: 100 + get().nodes.length * 50, y: 100 },
+          data: { imageUrl: imageData, title, isLoading: false, variationId: newId, isUploaded: true, source: 'upload' },
+        };
+        set((state) => ({ nodes: [...state.nodes, newNode] }));
+        await saveImage(newId, imageData);
         return newId;
       },
 
@@ -193,6 +207,11 @@ export const useGraphStore = create(
       getNodeImage: (nodeId) => {
         const node = get().nodes.find(n => n.id === nodeId);
         return node ? node.data.imageUrl : null;
+      },
+
+      // Get node by ID
+      getNodeById: (nodeId) => {
+        return get().nodes.find(n => n.id === nodeId) || null;
       },
 
       // Get node position by ID

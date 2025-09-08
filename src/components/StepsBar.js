@@ -12,6 +12,7 @@ const StepsBar = () => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const {
+    nodes,
     selectedNodeId,
     generationActive,
     currentExecution,
@@ -68,8 +69,10 @@ const StepsBar = () => {
     setIsDragging(false);
   };
 
-  // Hide completely when no image is selected
+  // Hide when no image is selected or selected is an uploaded node
   if (!selectedNodeId) return null;
+  const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  if (!selectedNode || selectedNode?.data?.isUploaded) return null;
 
   return (
     <Card
@@ -94,11 +97,11 @@ const StepsBar = () => {
         <div className="text-sm text-muted-foreground">{headerText}</div>
 
         {/* Planner source if available */}
-        {plannerSource && (
+        {/* {plannerSource && (
           <div className="text-[11px] text-muted-foreground/80">
             Planner: <span className="font-mono">{plannerSource}</span>
           </div>
-        )}
+        )} */}
 
         {/* Plan steps for selected image */}
         {selectedExec && totalSteps > 0 && (
