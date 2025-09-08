@@ -37,6 +37,7 @@ const PromptBox = () => {
     setSelectedNode,
     setSelectedNodes,
     removeSelectedNode,
+    connectParentsToChild,
   } = useGraphStore();
 
   // Load thumbnails for all selected nodes
@@ -159,6 +160,8 @@ const PromptBox = () => {
         y: (-y + height / 2) / zoom - 60,
       };
       const newNodeId = createBaseNode('Mashup', centerPos);
+      // Connect all selected images as parents to the new mashup node
+      connectParentsToChild(selectedNodeIds, newNodeId);
 
       const formData = new FormData();
       formData.append('prompt', promptValue);

@@ -120,6 +120,20 @@ export const useGraphStore = create(
         }));
       },
 
+      // Connect multiple parents to a child node with edges
+      connectParentsToChild: (parentIds, childId) => {
+        const parents = Array.isArray(parentIds) ? parentIds : [];
+        if (!childId || parents.length === 0) return;
+        set((state) => {
+          const existing = new Set((state.edges || []).map((e) => `${e.source}->${e.target}`));
+          const newEdges = parents
+            .filter((pid) => pid && pid !== childId)
+            .map((pid) => ({ id: `e${pid}-${childId}`, source: pid, target: childId }))
+            .filter((e) => !existing.has(`${e.source}->${e.target}`));
+          return { edges: [...state.edges, ...newEdges] };
+        });
+      },
+
       // Create new base node
       createBaseNode: (title = 'New Image', positionOverride) => {
         const newId = uuidv4();
